@@ -9,11 +9,40 @@ function initDatabase() {
       telegram_id INTEGER UNIQUE NOT NULL,
       name TEXT,
       username TEXT,
+      selected_region TEXT DEFAULT 'Toshkent',
+      latitude REAL,
+      longitude REAL,
+      notifications_enabled INTEGER DEFAULT 1,
       downloads_count INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       last_active DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id);
+  `);
+
+  // Yangi ustunlarni mavjud bazaga qo'shish (agar bo'lmasa)
+  try { db.exec("ALTER TABLE users ADD COLUMN selected_region TEXT DEFAULT 'Toshkent';"); } catch(e) {}
+  try { db.exec("ALTER TABLE users ADD COLUMN latitude REAL;"); } catch(e) {}
+  try { db.exec("ALTER TABLE users ADD COLUMN longitude REAL;"); } catch(e) {}
+  try { db.exec("ALTER TABLE users ADD COLUMN notifications_enabled INTEGER DEFAULT 1;"); } catch(e) {}
+
+  // Namoz vaqtlari kesh jadvali
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS prayer_cache (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      region_key TEXT NOT NULL,
+      date_str TEXT NOT NULL,
+      fajr TEXT,
+      sunrise TEXT,
+      dhuhr TEXT,
+      asr TEXT,
+      maghrib TEXT,
+      isha TEXT,
+      hijri_date TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(region_key, date_str)
+    );
+    CREATE INDEX IF NOT EXISTS idx_prayer_cache ON prayer_cache(region_key, date_str);
   `);
 
   // Downloads / Requests log jadvali

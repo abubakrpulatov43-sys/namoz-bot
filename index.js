@@ -7,6 +7,19 @@ const userRepository = require("./src/database/users");
 // Handlers
 const { handleStart } = require("./src/handlers/start");
 const {
+  handleTodayPrayer,
+  handleChooseRegion,
+  handleRegionCallback,
+  handleLocation,
+  handleWeeklyPrayer,
+  handleTasbeh,
+  handleTasbehCallback,
+  handleDuolar,
+  handleNotificationSettings,
+  handleToggleNotifyCallback,
+} = require("./src/handlers/prayerHandler");
+const { startPrayerReminder } = require("./src/services/prayerReminder");
+const {
   extractUrls,
   handleLink,
   handleDownloadFullAudio,
@@ -45,6 +58,12 @@ bot.use(async (ctx, next) => {
 // 3. Buyruqlar (Commands)
 bot.command("start", handleStart);
 bot.command("help", handleStart);
+bot.command("namoz", handleTodayPrayer);
+bot.command("hudud", handleChooseRegion);
+bot.command("taqvim", handleWeeklyPrayer);
+bot.command("tasbeh", handleTasbeh);
+bot.command("duo", handleDuolar);
+bot.command("eslatma", handleNotificationSettings);
 bot.command("yumoloq", handleYumoloqCommand);
 bot.command("krujok", handleYumoloqCommand);
 bot.command("ovoz", handleVoiceCommand);
@@ -52,9 +71,41 @@ bot.command("voice", handleVoiceCommand);
 bot.command("golos", handleVoiceCommand);
 bot.command("admin", (ctx) => handleAdminPanel(ctx, "all"));
 
-// 4. Inline Callback Router
+// 4. GPS Lokatsiya yuborilganda
+bot.on(":location", handleLocation);
+
+// 5. Inline Callback Router
 bot.on("callback_query:data", async (ctx) => {
   const data = ctx.callbackQuery.data;
+
+  // Namoz hududi tanlanganda
+  if (data.startsWith("reg:")) {
+    const regionKey = data.replace("reg:", "");
+    return handleRegionCallback(ctx, regionKey);
+  }
+
+  // Namoz vaqtini yangilash
+  if (data === "refresh_prayer") {
+    await ctx.answerCallbackQuery({ text: "🔄 Yangilandi" });
+    return handleTodayPrayer(ctx);
+  }
+
+  // Hududni o'zgartirish
+  if (data === "choose_region") {
+    await ctx.answerCallbackQuery();
+    return handleChooseRegion(ctx);
+  }
+
+  // Tasbeh amallari
+  if (data.startsWith("tasbeh_")) {
+    const action = data.replace("tasbeh_", "");
+    return handleTasbehCallback(ctx, action);
+  }
+
+  // Eslatmani yoqish / o'chirish
+  if (data === "toggle_notify") {
+    return handleToggleNotifyCallback(ctx);
+  }
 
   // To'liq musiqani topish va yuklash (Shazam orqali)
   if (data.startsWith("dl_full_a:")) {
@@ -62,13 +113,13 @@ bot.on("callback_query:data", async (ctx) => {
     return handleDownloadFullAudio(ctx, cacheId);
   }
 
-  // Qisqa audio yuklash (Videodagi)
+  // Qisqa audio yuklash
   if (data.startsWith("dl_a:")) {
     const cacheId = data.replace("dl_a:", "");
     return handleDownloadShortAudio(ctx, cacheId);
   }
 
-  // Video yuklash (Havoladan)
+  // Video yuklash
   if (data.startsWith("dl_v:")) {
     const cacheId = data.replace("dl_v:", "");
     return handleDownloadVideo(ctx, cacheId);
@@ -80,7 +131,7 @@ bot.on("callback_query:data", async (ctx) => {
     return handleDownloadVideoNote(ctx, cacheId);
   }
 
-  // Ikkalasini ham yuklash (Full musiqa + Video)
+  // Ikkalasini ham yuklash
   if (data.startsWith("dl_both:")) {
     const cacheId = data.replace("dl_both:", "");
     return handleDownloadBoth(ctx, cacheId);
@@ -100,15 +151,32 @@ bot.on("callback_query:data", async (ctx) => {
   }
 });
 
-// 5. Video, audio, krujok yuborilganda (Shazam orqali to'liq musiqasini topish)
-bot.on([":video", ":video_note", ":audio", ":voice"], handleDirectVideo);
-
-// 6. Matnli xabarlar (Havola yoki Musiqa qidirish)
+// 6. Matnli xabarlar (Menyu tugmalari va qidiruv)
 bot.on("message:text", async (ctx) => {
   const text = ctx.message.text.trim();
 
   // Buyruq bo'lsa o'tkazib yuborish
   if (text.startsWith("/")) return;
+
+  // Menyu tugmalari
+  if (text === "🕌 Bugungi namoz vaqtlari") {
+    return handleTodayPrayer(ctx);
+  }
+  if (text === "📍 Hududni tanlash") {
+    return handleChooseRegion(ctx);
+  }
+  if (text === "📅 Haftalik taqvim") {
+    return handleWeeklyPrayer(ctx);
+  }
+  if (text === "📿 Tasbeh") {
+    return handleTasbeh(ctx);
+  }
+  if (text === "⏰ Eslatma sozlamasi") {
+    return handleNotificationSettings(ctx);
+  }
+  if (text === "🤲 Duolar") {
+    return handleDuolar(ctx);
+  }
 
   // 1. Havola tekshirish (Instagram, TikTok, YouTube, Pinterest, etc.)
   const urls = extractUrls(text);
@@ -120,14 +188,20 @@ bot.on("message:text", async (ctx) => {
   return handleSearch(ctx, text);
 });
 
-// Xatoliklarni boshqarish
+// 7. Video, audio, krujok yuborilganda
+bot.on([":video", ":video_note", ":audio", ":voice"], handleDirectVideo);
+
+// 8. Xatoliklarni boshqarish
 bot.catch((err) => {
   console.error("Botda xatolik yuz berdi:", err.message);
 });
 
-// Botni ishga tushirish
+// 9. Namoz vaqti bildirishnomalarini (Azon eslatmasi) ishga tushirish
+startPrayerReminder(bot);
+
+// 10. Botni ishga tushirish
 bot.start({
   onStart: (botInfo) => {
-    console.log(`🚀 Musiqa & Video Bot (@${botInfo.username}) muvaffaqiyatli ishga tushdi!`);
+    console.log(`🕌 Namoz Vaqtlari Boti (@${botInfo.username}) muvaffaqiyatli ishga tushdi!`);
   },
 });

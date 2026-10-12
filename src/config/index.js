@@ -4,6 +4,11 @@ const fs = require("fs");
 
 const isWindows = process.platform === "win32";
 
+const binDir = path.resolve("./bin");
+if (fs.existsSync(binDir)) {
+  process.env.PATH = `${binDir}${path.delimiter}${process.env.PATH}`;
+}
+
 const localYtDlp = path.resolve("./bin/yt-dlp.exe");
 const localFfmpeg = path.resolve("./bin/ffmpeg.exe");
 

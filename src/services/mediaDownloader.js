@@ -12,7 +12,7 @@ if (!fs.existsSync(config.downloadDir)) {
 const downloadQueue = new Map();
 
 const mediaDownloader = {
-  // Tezkor Audio yuklash (Direct Stream 140/251/ba)
+  // Tezkor va Sof MP3 formatida yuklash
   async downloadAudio(url) {
     if (downloadQueue.has(url)) {
       return downloadQueue.get(url);
@@ -25,10 +25,13 @@ const mediaDownloader = {
       return new Promise((resolve, reject) => {
         const args = [
           "--ffmpeg-location", config.ffmpegPath,
-          "-f", "140/251/ba[filesize<20M]/ba",
+          "-x",
+          "--audio-format", "mp3",
+          "--audio-quality", "0",
           "--no-playlist",
           "--no-check-certificates",
-          "--buffer-size", "64K",
+          "--buffer-size", "128K",
+          "-N", "4",
           "--max-filesize", `${config.maxFileSizeMB}M`,
           "-o", outputTemplate,
           "--no-warnings",
@@ -38,11 +41,12 @@ const mediaDownloader = {
         execFile(config.ytDlpPath, args, { maxBuffer: 15 * 1024 * 1024 }, (err, stdout, stderr) => {
           if (err) {
             console.error("yt-dlp audio download error:", stderr || err.message);
-            // Fallback to ffmpeg audio extraction
+            // Fallback direct stream if ffmpeg conversion fails
             const fallbackArgs = [
               "--ffmpeg-location", config.ffmpegPath,
-              "-x", "--audio-format", "mp3",
-              "--no-playlist", "--no-check-certificates",
+              "-f", "bestaudio/140/ba",
+              "--no-playlist",
+              "--no-check-certificates",
               "-o", outputTemplate,
               url
             ];
@@ -150,7 +154,36 @@ const mediaDownloader = {
     });
   },
 
-  // Ultrafast Ovoz ajratish
+  // Ultrafast Audio snippet ajratish (Shazam uchun 10-12 soniya mono 44.1kHz)
+  async extractAudioSnippetForShazam(inputPath) {
+    const fileId = crypto.randomBytes(6).toString("hex");
+    const outputPath = path.join(config.downloadDir, `shz_${fileId}.mp3`);
+
+    return new Promise((resolve, reject) => {
+      const args = [
+        "-i", inputPath,
+        "-t", "12",
+        "-vn",
+        "-ar", "44100",
+        "-ac", "1",
+        "-b:a", "128k",
+        "-preset", "ultrafast",
+        "-threads", "0",
+        "-y",
+        outputPath
+      ];
+
+      execFile(config.ffmpegPath, args, (err) => {
+        if (err) {
+          // If 12s fail, try without -t
+          return this.extractAudioFromLocalFile(inputPath).then(resolve).catch(reject);
+        }
+        resolve(outputPath);
+      });
+    });
+  },
+
+  // Ultrafast To'liq Ovoz ajratish
   async extractAudioFromLocalFile(inputPath) {
     const fileId = crypto.randomBytes(6).toString("hex");
     const outputPath = path.join(config.downloadDir, `ext_${fileId}.mp3`);

@@ -8,7 +8,7 @@ const { escapeHtml } = require("../utils/text");
 
 async function handleSearch(ctx, query) {
   const safeQuery = escapeHtml(query);
-  const loading = await ctx.reply(`⚡️ <b>"${safeQuery}" topilmoqda...</b>`, {
+  const loading = await ctx.reply(`⚡️ <b>"${safeQuery}" qidirilmoqda...</b>`, {
     parse_mode: "HTML",
   });
 
@@ -33,67 +33,54 @@ async function handleSearch(ctx, query) {
       const parts = topSong.title.split("-");
       artist = parts[0].trim();
       songName = parts.slice(1).join("-").trim();
+    } else if (topSong.title.includes("—")) {
+      const parts = topSong.title.split("—");
+      artist = parts[0].trim();
+      songName = parts.slice(1).join("—").trim();
     }
 
-    // 2. KESHDA BORLIGINI TEKSHIRISH (0.1 soniyada yuborish)
-    const cached = downloadRepository.getCachedFile(topSong.url, "audio");
-    if (cached && cached.file_id) {
-      await ctx.api.deleteMessage(ctx.chat.id, loading.message_id).catch(() => {});
-      await ctx.replyWithAudio(cached.file_id, {
-        caption: `🎵 <b>${escapeHtml(songName)}</b>\n👤 <b>${escapeHtml(artist)}</b>\n\n🤖 <b>pulatov.music.uz</b> (@${ctx.me.username}) orqali topildi`,
-        parse_mode: "HTML",
-      });
-      userRepository.incrementDownloads(ctx.from.id);
-      return;
-    }
+    // Ro'yxat matnini shakllantirish
+    let text = `👤 <b>Исполнитель:</b> ${escapeHtml(artist)}\n` +
+               `🎵 <b>Название песни:</b> ${escapeHtml(songName)}\n\n`;
 
-    // 3. TO'G'RIDAN-TO'G'RI YUKLAB YUBORISH (Hech qanday tugma bosish talab qilinmaydi!)
-    const filePath = await mediaDownloader.downloadAudio(topSong.url);
-
-    const safeTitle = escapeHtml(songName);
-    const safeArtist = escapeHtml(artist);
-
-    // Qo'shimcha variantlar tugmalari (ixtiyoriy)
     const inlineKb = new InlineKeyboard();
     const topVideoCacheId = urlCache.store(topSong.url, { title: topSong.title, uploader: artist });
-    inlineKb.text("🗂 Videoni yuklash", `dl_v:${topVideoCacheId}`);
+    
+    // 1-qator: Video tugmasi
+    inlineKb.text("📁 Video", `dl_v:${topVideoCacheId}`);
+    inlineKb.row();
 
-    if (results.length > 1) {
-      inlineKb.row();
-      results.slice(1).forEach((s, idx) => {
-        const cacheId = urlCache.store(s.url, { title: s.title, uploader: s.author });
-        inlineKb.text(`🎵 Variant ${idx + 2}`, `dl_search_a:${cacheId}`);
+    // 2-qator: 1, 2, 3, 4, 5 raqamli tugmalar
+    results.forEach((s, idx) => {
+      const num = idx + 1;
+      text += `${num}. ${escapeHtml(s.title)} ${s.duration ? escapeHtml(s.duration) : ""}\n`;
+      
+      const cacheId = urlCache.store(s.url, { title: s.title, uploader: s.author, duration: s.seconds });
+      inlineKb.text(`${num}`, `dl_search_a:${cacheId}`);
+    });
+
+    // Rasm bilan yuborish (Thumbnail)
+    const photoUrl = topSong.thumbnail || "https://picsum.photos/600/400";
+    
+    await ctx.api.deleteMessage(ctx.chat.id, loading.message_id).catch(() => {});
+
+    try {
+      await ctx.replyWithPhoto(photoUrl, {
+        caption: text,
+        parse_mode: "HTML",
+        reply_markup: inlineKb,
+      });
+    } catch (photoErr) {
+      // Agar rasm yuborishda xatolik bo'lsa, oddiy matn ko'rinishida yuboriladi
+      await ctx.reply(text, {
+        parse_mode: "HTML",
+        reply_markup: inlineKb,
       });
     }
-
-    const sent = await ctx.replyWithAudio(new InputFile(filePath), {
-      title: songName,
-      performer: artist,
-      duration: topSong.seconds || undefined,
-      caption: `🎵 <b>${safeTitle}</b>\n👤 <b>${safeArtist}</b>\n\n🤖 <b>pulatov.music.uz</b> (@${ctx.me.username}) orqali topildi`,
-      parse_mode: "HTML",
-      reply_markup: inlineKb,
-    });
-
-    if (sent && sent.audio) {
-      downloadRepository.saveCachedFile(topSong.url, sent.audio.file_id, "audio", songName, artist);
-    }
-
-    downloadRepository.log({
-      telegramId: ctx.from.id,
-      type: "audio",
-      sourceUrl: topSong.url,
-      title: songName,
-      duration: topSong.seconds,
-    });
-    userRepository.incrementDownloads(ctx.from.id);
-
-    mediaDownloader.cleanupFile(filePath);
-    await ctx.api.deleteMessage(ctx.chat.id, loading.message_id).catch(() => {});
   } catch (err) {
     console.error("Auto-search error:", err.message);
     await ctx.api.deleteMessage(ctx.chat.id, loading.message_id).catch(() => {});
-    await ctx.reply(`❌ <b>Musiqani yuklashda xatolik:</b> ${escapeHtml(err.message)}`, { parse_mode: "HTML" });
+    await ctx.reply(`❌ <b>Qidiruvda xatolik:</b> ${escapeHtml(err.message)}`, { parse_mode: "HTML" });
   }
 }
 
@@ -108,8 +95,11 @@ async function handleSearchDownload(ctx, cacheId) {
   if (cached && cached.file_id) {
     await ctx.answerCallbackQuery({ text: "⚡️ Musiqa yuborilmoqda..." });
     const safeTitle = escapeHtml(cached.title || item.meta?.title || "Musiqa");
+    const safeArtist = escapeHtml(cached.performer || item.meta?.uploader || "pulatov.music.uz");
     await ctx.replyWithAudio(cached.file_id, {
-      caption: `🎵 <b>${safeTitle}</b>\n\n🤖 <b>pulatov.music.uz</b> (@${ctx.me.username}) orqali yuklandi`,
+      title: cached.title || item.meta?.title,
+      performer: cached.performer || item.meta?.uploader,
+      caption: `🎵 <b>${safeArtist} — ${safeTitle}</b>\n\n🤖 <b>pulatov.music.uz</b> (@${ctx.me.username}) orqali yuklandi`,
       parse_mode: "HTML",
     });
     userRepository.incrementDownloads(ctx.from.id);
@@ -126,21 +116,32 @@ async function handleSearchDownload(ctx, cacheId) {
   try {
     filePath = await mediaDownloader.downloadAudio(item.url);
 
-    const title = item.meta?.title || "Musiqa";
-    const performer = item.meta?.uploader || "pulatov.music.uz";
+    let artist = item.meta?.uploader || "pulatov.music.uz";
+    let title = item.meta?.title || "Musiqa";
+    if (title.includes("-")) {
+      const parts = title.split("-");
+      artist = parts[0].trim();
+      title = parts.slice(1).join("-").trim();
+    } else if (title.includes("—")) {
+      const parts = title.split("—");
+      artist = parts[0].trim();
+      title = parts.slice(1).join("—").trim();
+    }
+
     const duration = item.meta?.duration || undefined;
     const safeTitle = escapeHtml(title);
+    const safeArtist = escapeHtml(artist);
 
     const sent = await ctx.replyWithAudio(new InputFile(filePath), {
       title: title,
-      performer: performer,
+      performer: artist,
       duration: duration,
-      caption: `🎵 <b>${safeTitle}</b>\n\n🤖 <b>pulatov.music.uz</b> (@${ctx.me.username}) orqali yuklandi`,
+      caption: `🎵 <b>${safeArtist} — ${safeTitle}</b>\n\n🤖 <b>pulatov.music.uz</b> (@${ctx.me.username}) orqali yuklandi`,
       parse_mode: "HTML",
     });
 
     if (sent && sent.audio) {
-      downloadRepository.saveCachedFile(item.url, sent.audio.file_id, "audio", title, performer);
+      downloadRepository.saveCachedFile(item.url, sent.audio.file_id, "audio", title, artist);
     }
 
     downloadRepository.log({
