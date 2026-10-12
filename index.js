@@ -205,3 +205,13 @@ bot.start({
     console.log(`🕌 Namoz Vaqtlari Boti (@${botInfo.username}) muvaffaqiyatli ishga tushdi!`);
   },
 });
+
+// 11. Render.com bepul Web Service uchun HTTP server (Health Check)
+const http = require("http");
+const port = process.env.PORT || 8080;
+http.createServer((req, res) => {
+  res.writeHead(200, { "Content-Type": "text/plain" });
+  res.end("🕌 Namoz Vaqtlari Boti 24/7 ishlamoqda!\n");
+}).listen(port, () => {
+  console.log(`🌐 HTTP Server port ${port} da ishga tushdi (Render uchun).`);
+});
