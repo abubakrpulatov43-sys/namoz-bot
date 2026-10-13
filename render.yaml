@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: namoz-bot
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: BOT_TOKEN
+        value: 8449501408:AAHqhezs9CsROq7OUOy7JQwza2Fl4sok0ic
+      - key: ADMIN_IDS
+        value: "2099496881"
