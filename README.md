@@ -1,36 +1,22 @@
-# 🎵 Musiqa va Video Yuklovchi Telegram Bot (@AvtoRaqamm_bot)
+# 🕌 Namoz Vaqtlari Boti (@pulatov_namoz_bot)
 
-Ushbu bot ijtimoiy tarmoqlardagi (Instagram, TikTok, YouTube, Pinterest va b.) videolarni yuklash, ularning audio (MP3) formatidagi musiqasini ajratib olish va qo'shiq nomi bo'yicha musiqa qidirib yuklab berish imkoniyatlariga ega.
+O'zbekistonning barcha hududlari hamda GPS lokatsiya bo'yicha aniq namoz vaqtlari, azon eslatmalari va qulay taqvim boti.
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/abubakrpulatov43-sys/namoz-bot)
 
 ---
 
 ## 🌟 Asosiy Imkoniyatlar:
-
-1. **🔗 Havola orqali yuklash (Video & Musiqa):**
-   - **Instagram** (Reels, Post)
-   - **TikTok** (Suv belgisiz video va musiqasi)
-   - **YouTube & YouTube Shorts** (Video va MP3)
-   - **Pinterest, Twitter/X, Facebook** va boshqalar
-   - Foydalanuvchi havola yuborganda bot darhol inline tugmalar chiqaradi:
-     - `🎵 Musiqasi (MP3)`
-     - `🎬 Video (MP4)`
-     - `⚡️ Ikkalasini ham yuklash`
-
-2. **🔍 Musiqa qidirish (Qo'shiq yoki Ijrochi nomi):**
-   - Istalgan qo'shiq yoki san'atkor nomini yozib yuboring (masalan: `Konsta`, `Miyagi`, `Sherali Jo'rayev`).
-   - Bot eng ommabop 6 ta natijani tartib raqami va inline tugmalari bilan chiqaradi.
-   - Bitta bosishda to'liq MP3 formatda yuklab beradi.
-
-3. **📹 Videodan musiqa ajratish:**
-   - Botga to'g'ridan-to'g'ri video yoki video-xabar (krujok) yuborilsa, uning ichidagi audio trekni ajratib MP3 qilib beradi.
-
-4. **📊 Admin Statistikasi (`/admin`):**
-   - Jami foydalanuvchilar, yuklab olingan musiqalar va videolar soni, top qidiruvlar (Bugungi, haftalik, oylik va umumiy).
+1. 🕌 **Aniq Namoz Vaqtlari:** Bomdod, Quyosh, Peshin, Asr, Shom, Xufton vaqtlari.
+2. 📍 **GPS Lokatsiya & 14 ta Hudud:** O'zbekistonning barcha 14 ta viloyat/shaharlari hamda jonli lokatsiya orqali aniqlash.
+3. ⏰ **Kunlik 05:00 xabarnoma:** Har kuni ertalab soat 05:00 da o'sha kungi to'liq namoz jadvalini avtomatik yuborish.
+4. 📢 **Avtomatik Azon eslatmasi:** Har bir namoz vaqti kirgan daqiqada avtomatik eslatma.
+5. 📅 **Haftalik taqvim, 📿 Elektron Tasbeh va 🤲 Duolar**.
 
 ---
 
-## 🚀 Ishga tushirish:
-
+## 🚀 24/7 Serverda ishga tushirish:
+Tepadagi **Deploy to Render** tugmasini bosing yoki:
 ```bash
 npm install
 npm start
